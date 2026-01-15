@@ -5,7 +5,7 @@ import os
 # ---------- CONFIG ----------
 URL_FILE = "links.txt"       # file in same folder as script
 DISPLAY_TIME = 10            # seconds per window
-BROWSER = "chromium-browser"
+BROWSER = "google-chrome"
 # ----------------------------
 
 def read_urls():
