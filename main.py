@@ -11,7 +11,7 @@ def read_urls(filename):
 def show_url(url):
     subprocess.run([
         "chromium-browser",
-        "--kiosk",
+        "--start-fullscreen",
         "--noerrdialogs",
         "--disable-infobars",
         "--app=" + url
