@@ -1,69 +1,84 @@
+import pychrome
 import subprocess
 import time
 import os
+import socket
 
-URL_FILE = "links.txt"
+# ---------- CONFIG ----------
+URL_FILE = "links.txt"       # file in same folder as script
 DISPLAY_TIME = 10
+DEBUG_PORT = 9222
 BROWSER = "chromium-browser"
-USER_DATA_DIR = "/home/john/.config/signage-chrome"
+# ----------------------------
 
+# Check if remote debugging port is open
+def is_port_open(port):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.connect(("127.0.0.1", port))
+        s.close()
+        return True
+    except:
+        return False
+
+# Launch Chromium with remote debugging if not running
+def launch_chromium():
+    print("Launching Chromium...")
+    subprocess.Popen([
+        BROWSER,
+        "--start-fullscreen",
+        "--disable-infobars",
+        f"--remote-debugging-port={DEBUG_PORT}"
+    ])
+    time.sleep(5)  # give it a moment to start
+
+# Read URLs from file
 def read_urls():
-    """Read URLs from the text file, one per line."""
     if not os.path.exists(URL_FILE):
         print(f"{URL_FILE} not found")
         return []
     with open(URL_FILE, "r") as f:
         return [line.strip() for line in f if line.strip()]
 
-def open_tabs(urls):
-    """Open all URLs in separate tabs in one Chromium window."""
+# Open URLs in separate tabs
+def open_tabs(browser, urls):
+    tabs = []
     if not urls:
-        return None
+        return tabs
 
-    # Open the first URL to start a window
-    proc = subprocess.Popen([
-        BROWSER,
-        "--start-fullscreen",
-        "--disable-infobars",
-        f"--user-data-dir={USER_DATA_DIR}",
-        urls[0]
-    ])
-    time.sleep(3)  # wait for window to open
+    # First URL in first tab
+    tabs.append(browser.new_tab())
+    tabs[0].start()
+    tabs[0].Page.navigate(url=urls[0])
+    tabs[0].wait(2)
 
-    # Open remaining URLs in new tabs
+    # Remaining URLs in new tabs
     for url in urls[1:]:
-        subprocess.Popen([
-            BROWSER,
-            "--new-tab",
-            f"--user-data-dir={USER_DATA_DIR}",
-            url
-        ])
-        time.sleep(1)  # small delay to let tabs load
+        tab = browser.new_tab()
+        tab.start()
+        tab.Page.navigate(url=url)
+        tab.wait(2)
+        tabs.append(tab)
 
-    return proc
+    return tabs
 
-def cycle_tabs(url_count):
-    """Cycle through tabs using Ctrl+Tab."""
-    import subprocess
+# Cycle through tabs smoothly
+def cycle_tabs(tabs):
     while True:
-        for _ in range(url_count):
-            # Ctrl+Tab switches to next tab
-            subprocess.run(["xdotool", "key", "ctrl+Tab"])
+        for tab in tabs:
+            tab.Page.bring_to_front()  # focus this tab
             time.sleep(DISPLAY_TIME)
 
-def main():
-    urls = read_urls()
-    if not urls:
-        print("No URLs to open")
-        return
+# ---------------------------- MAIN ----------------------------
+if not is_port_open(DEBUG_PORT):
+    launch_chromium()
 
-    proc = open_tabs(urls)
-    if not proc:
-        return
+browser = pychrome.Browser(url=f"http://127.0.0.1:{DEBUG_PORT}")
 
-    # Give all tabs a moment to load
-    time.sleep(5)
-    cycle_tabs(len(urls))
+urls = read_urls()
+if not urls:
+    print("No URLs to display!")
+    exit()
 
-if __name__ == "__main__":
-    main()
+tabs = open_tabs(browser, urls)
+cycle_tabs(tabs)
