@@ -1,33 +1,23 @@
-import subprocess
+import pychrome
 import time
 
 URL_FILE = "links.txt"
-DISPLAY_TIME = 10  # seconds
+DISPLAY_TIME = 10
+DEBUG_PORT = 9222
 
-def read_urls(filename):
-    with open(filename, "r") as f:
+def read_urls():
+    with open(URL_FILE) as f:
         return [line.strip() for line in f if line.strip()]
 
-def show_url(url):
-    subprocess.run([
-        "chromium-browser",
-        "--start-fullscreen",
-        "--noerrdialogs",
-        "--disable-infobars",
-        "--app=" + url
-    ])
+urls = read_urls()
 
-def main():
-    urls = read_urls(URL_FILE)
+browser = pychrome.Browser(url=f"http://127.0.0.1:{DEBUG_PORT}")
+tabs = browser.list_tab()
+tab = tabs[0] if tabs else browser.new_tab()
+tab.start()
 
-    if not urls:
-        print("No URLs found.")
-        return
-
-    while True:
-        for url in urls:
-            show_url(url)
-            time.sleep(DISPLAY_TIME)
-
-if __name__ == "__main__":
-    main()
+while True:
+    for url in urls:
+        tab.Page.navigate(url=url)
+        tab.wait(2)  # wait for page to load
+        time.sleep(DISPLAY_TIME)
