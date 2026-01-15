@@ -26,25 +26,31 @@ def open_windows(urls):
             "--start-fullscreen",
             "--disable-infobars",
             "--new-window",
-            "--no-sandbox",      # avoid Snap/AppArmor issues
+            "--no-sandbox",
             url
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # suppress warnings
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         procs.append(proc)
         time.sleep(2)  # small delay to let window open
     return procs
 
-def get_window_ids():
-    """Return list of Chromium window IDs using wmctrl."""
+def get_window_ids_for_urls(urls):
+    """Return Chromium window IDs that match our URLs using wmctrl."""
     output = subprocess.check_output(["wmctrl", "-l"]).decode()
     window_ids = []
     for line in output.splitlines():
-        if "Chromium" in line:
-            window_ids.append(line.split()[0])
+        for url in urls:
+            if url in line:
+                window_ids.append(line.split()[0])
     return window_ids
 
-def cycle_windows(window_ids):
-    """Bring each window to front in an endless loop."""
+def cycle_windows(urls):
+    """Cycle through windows continuously forever."""
     while True:
+        window_ids = get_window_ids_for_urls(urls)
+        if not window_ids:
+            print("No Chromium windows detected, retrying in 2 seconds...")
+            time.sleep(2)
+            continue
         for wid in window_ids:
             subprocess.run(["wmctrl", "-i", "-a", wid])
             time.sleep(DISPLAY_TIME)
@@ -57,12 +63,7 @@ if not urls:
 
 # Open one window per URL
 open_windows(urls)
-time.sleep(3)  # let windows attach
+time.sleep(5)  # let windows attach
 
-# Get window IDs and cycle through them
-window_ids = get_window_ids()
-if not window_ids:
-    print("No Chromium windows detected!")
-    exit()
-
-cycle_windows(window_ids)
+# Cycle windows continuously
+cycle_windows(urls)
