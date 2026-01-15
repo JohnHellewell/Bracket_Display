@@ -1,36 +1,10 @@
-import pychrome
 import subprocess
 import time
 import os
-import socket
 
-# ---------- CONFIG ----------
-URL_FILE = "links.txt"       # file in same folder as script
+URL_FILE = "links.txt"
 DISPLAY_TIME = 10
-DEBUG_PORT = 9222
 BROWSER = "chromium-browser"
-# ----------------------------
-
-def is_port_open(port):
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.connect(("127.0.0.1", port))
-        s.close()
-        return True
-    except:
-        return False
-
-def launch_chromium(first_url):
-    """Launch Chromium with first URL in initial tab."""
-    print(f"Launching Chromium with {first_url}...")
-    subprocess.Popen([
-        BROWSER,
-        "--start-fullscreen",
-        "--disable-infobars",
-        f"--remote-debugging-port={DEBUG_PORT}",
-        first_url  # open the first URL immediately
-    ])
-    time.sleep(5)  # wait for Chromium to start
 
 def read_urls():
     if not os.path.exists(URL_FILE):
@@ -39,22 +13,35 @@ def read_urls():
     with open(URL_FILE, "r") as f:
         return [line.strip() for line in f if line.strip()]
 
-def open_remaining_tabs(browser, urls):
-    """Open remaining URLs as new tabs after first one."""
-    tabs = []
-    for url in urls[1:]:
-        tab = browser.new_tab()
-        tab.start()
-        tab.Page.navigate(url=url)
-        tab.wait(2)
-        tabs.append(tab)
-    return tabs
+def open_windows(urls):
+    """Open each URL in a separate Chromium window"""
+    procs = []
+    for url in urls:
+        proc = subprocess.Popen([
+            BROWSER,
+            "--start-fullscreen",
+            "--disable-infobars",
+            "--new-window",
+            url
+        ])
+        procs.append(proc)
+        time.sleep(2)  # let window open
+    return procs
 
-def cycle_tabs(tabs):
-    """Bring each tab to front in an endless loop."""
+def get_window_ids():
+    """Return list of Chromium window IDs"""
+    output = subprocess.check_output(["wmctrl", "-l"]).decode()
+    window_ids = []
+    for line in output.splitlines():
+        if "Chromium" in line:
+            window_ids.append(line.split()[0])
+    return window_ids
+
+def cycle_windows(window_ids):
+    """Cycle through windows endlessly"""
     while True:
-        for tab in tabs:
-            tab.Page.bring_to_front()
+        for wid in window_ids:
+            subprocess.run(["wmctrl", "-i", "-a", wid])
             time.sleep(DISPLAY_TIME)
 
 # ---------------- MAIN ----------------
@@ -63,18 +50,10 @@ if not urls:
     print("No URLs to display!")
     exit()
 
-# Launch Chromium with first URL
-if not is_port_open(DEBUG_PORT):
-    launch_chromium(urls[0])
+# Open one window per URL
+open_windows(urls)
+time.sleep(3)
 
-browser = pychrome.Browser(url=f"http://127.0.0.1:{DEBUG_PORT}")
-
-# Give first tab a moment to attach
-time.sleep(2)
-all_tabs = browser.list_tab()
-
-# Open remaining URLs
-all_tabs += open_remaining_tabs(browser, urls)
-
-# Cycle tabs endlessly
-cycle_tabs(all_tabs)
+# Get window IDs and cycle through them
+window_ids = get_window_ids()
+cycle_windows(window_ids)
