@@ -1,69 +1,57 @@
 import subprocess
-import time
 import os
+import time
 
 # ---------- CONFIG ----------
-URL_FILE = "links.txt"       # file in same folder as script
-DISPLAY_TIME = 10            # seconds per window
-BROWSER = "google-chrome"    # Google Chrome
+URL_FILE = "links.txt"           # file with one URL per line
+BROWSER_CMD = "google-chrome"    # default Chrome command
+STARTUP_DELAY = 5                # seconds to wait for Chrome to start before opening tabs
+TAB_DELAY = 1                    # seconds between opening each tab
 # ----------------------------
 
 def read_urls():
-    """Read URLs from the text file, one per line."""
+    """Read URLs from the text file."""
     if not os.path.exists(URL_FILE):
-        print(f"{URL_FILE} not found")
+        print(f"{URL_FILE} not found!")
         return []
     with open(URL_FILE, "r") as f:
         return [line.strip() for line in f if line.strip()]
 
-def open_windows(urls):
-    """Open each URL in a separate Google Chrome window."""
-    procs = []
-    for url in urls:
-        print(f"Opening {url}")
-        proc = subprocess.Popen([
-            BROWSER,
-            "--start-fullscreen",      # fullscreen
-            "--disable-infobars",      # hide info bars
-            "--new-window",            # separate window per URL
-            "--password-store=basic",  # disable keyring popups
+def open_tabs(urls):
+    """Open each URL in Chrome tabs, first one fullscreen."""
+    if not urls:
+        return
+
+    # Open first tab with fullscreen
+    first_url = urls[0]
+    print(f"Opening first tab: {first_url}")
+    subprocess.Popen([
+        BROWSER_CMD,
+        "--start-fullscreen",
+        "--disable-infobars",
+        "--password-store=basic",
+        first_url
+    ])
+
+    # Give Chrome time to fully start
+    time.sleep(STARTUP_DELAY)
+
+    # Open remaining tabs
+    for url in urls[1:]:
+        print(f"Opening tab: {url}")
+        subprocess.Popen([
+            BROWSER_CMD,
+            "--new-tab",
+            "--disable-infobars",
+            "--password-store=basic",
             url
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # hide terminal output
-        procs.append(proc)
-        time.sleep(2)  # give the window time to open
-    return procs
+        ])
+        time.sleep(TAB_DELAY)
 
-def get_window_ids_for_urls(urls):
-    """Return Google Chrome window IDs that match our URLs using wmctrl."""
-    output = subprocess.check_output(["wmctrl", "-l"]).decode()
-    window_ids = []
-    for line in output.splitlines():
-        for url in urls:
-            if url in line:
-                window_ids.append(line.split()[0])
-    return window_ids
-
-def cycle_windows(urls):
-    """Cycle through windows continuously forever."""
-    while True:
-        window_ids = get_window_ids_for_urls(urls)
-        if not window_ids:
-            print("No Chrome windows detected, retrying in 2 seconds...")
-            time.sleep(2)
-            continue
-        for wid in window_ids:
-            subprocess.run(["wmctrl", "-i", "-a", wid])
-            time.sleep(DISPLAY_TIME)
-
-# ---------------- MAIN ----------------
-urls = read_urls()
-if not urls:
-    print("No URLs to display!")
-    exit()
-
-# Open one window per URL
-open_windows(urls)
-time.sleep(5)  # let windows attach
-
-# Cycle windows continuously
-cycle_windows(urls)
+if __name__ == "__main__":
+    urls = read_urls()
+    if not urls:
+        print("No URLs to open. Exiting.")
+    else:
+        open_tabs(urls)
+        print("All tabs opened. Tab Revolver – Auto Rotate Tabs will handle cycling automatically.")
