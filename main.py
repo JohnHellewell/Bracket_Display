@@ -5,7 +5,7 @@ import os
 # ---------- CONFIG ----------
 URL_FILE = "links.txt"       # file in same folder as script
 DISPLAY_TIME = 10            # seconds per window
-BROWSER = "google-chrome"
+BROWSER = "google-chrome"    # Google Chrome
 # ----------------------------
 
 def read_urls():
@@ -17,24 +17,24 @@ def read_urls():
         return [line.strip() for line in f if line.strip()]
 
 def open_windows(urls):
-    """Open each URL in a separate Chromium window."""
+    """Open each URL in a separate Google Chrome window."""
     procs = []
     for url in urls:
         print(f"Opening {url}")
         proc = subprocess.Popen([
             BROWSER,
-            "--start-fullscreen",
-            "--disable-infobars",
-            "--new-window",
-            "--no-sandbox",
+            "--start-fullscreen",      # fullscreen
+            "--disable-infobars",      # hide info bars
+            "--new-window",            # separate window per URL
+            "--password-store=basic",  # disable keyring popups
             url
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)  # hide terminal output
         procs.append(proc)
-        time.sleep(2)  # small delay to let window open
+        time.sleep(2)  # give the window time to open
     return procs
 
 def get_window_ids_for_urls(urls):
-    """Return Chromium window IDs that match our URLs using wmctrl."""
+    """Return Google Chrome window IDs that match our URLs using wmctrl."""
     output = subprocess.check_output(["wmctrl", "-l"]).decode()
     window_ids = []
     for line in output.splitlines():
@@ -48,7 +48,7 @@ def cycle_windows(urls):
     while True:
         window_ids = get_window_ids_for_urls(urls)
         if not window_ids:
-            print("No Chromium windows detected, retrying in 2 seconds...")
+            print("No Chrome windows detected, retrying in 2 seconds...")
             time.sleep(2)
             continue
         for wid in window_ids:
